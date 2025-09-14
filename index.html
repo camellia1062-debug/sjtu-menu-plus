@@ -54,48 +54,15 @@
             position: relative;
         }
 
-        .team-badge {
+        .menu-plus {
             position: absolute;
             top: 20px;
             right: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 25px;
-            padding: 8px 16px;
-            font-size: 0.9em;
-            font-weight: 600;
             color: white;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .team-badge:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        /* 移动端团队标志优化 */
-        @media (max-width: 768px) {
-            .team-badge {
-                top: 15px;
-                right: 15px;
-                padding: 6px 12px;
-                font-size: 0.8em;
-                border-radius: 20px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .team-badge {
-                top: 10px;
-                right: 10px;
-                padding: 5px 10px;
-                font-size: 0.75em;
-                border-radius: 15px;
-            }
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            z-index: 10;
         }
 
         .header h1 {
@@ -828,6 +795,12 @@
                 padding: 20px 15px;
             }
             
+            .menu-plus {
+                top: 15px;
+                right: 15px;
+                font-size: 16px;
+            }
+            
             .header h1 {
                 font-size: 1.8em;
             }
@@ -1015,6 +988,12 @@
                 padding: 15px 10px;
             }
             
+            .menu-plus {
+                top: 10px;
+                right: 10px;
+                font-size: 14px;
+            }
+            
             .header h1 {
                 font-size: 1.5em;
             }
@@ -1183,7 +1162,7 @@
     
     <div class="container">
         <div class="header">
-            <div class="team-badge" onclick="showTeamInfo()">@Menu+团队</div>
+            <div class="menu-plus">menu+</div>
             <h1>🍽️ 上海交通大学食堂社区</h1>
             <p>发现美食，分享体验，让每一餐都更精彩</p>
             <div style="margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 20px;">
@@ -1325,7 +1304,6 @@
     <!-- 评论弹窗 -->
     <div id="commentModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
             <div class="modal-header">
                 <div class="modal-title" id="modalTitle"></div>
                 <div class="rating-display" id="modalRating"></div>
@@ -1353,25 +1331,6 @@
     </div>
 
     <script>
-        // 全局变量声明 - 必须在所有函数之前
-        let canteensData;
-        let currentModalData = null;
-        let filterSettings = {
-            spicy: null,
-            location: null,
-            priority: null
-        };
-        let currentStep = 1;
-        let slimFilterActive = false;
-        let fitnessFilterActive = false;
-        let currentFilters = {
-            spicy: 'all',
-            minRating: null,
-            maxRating: null,
-            minPrice: null,
-            maxPrice: null
-        };
-        
         // 辣度选项
         const spicyLevels = ['不辣', '微辣', '中辣', '麻辣'];
         
@@ -1463,77 +1422,40 @@
             return result;
         }
 
-        // 计算菜品平均评分
-        function calculateDishRating(comments) {
-            if (!comments || comments.length === 0) return 3.0;
-            const totalRating = comments.reduce((sum, comment) => sum + comment.rating, 0);
-            return (totalRating / comments.length).toFixed(1);
-        }
-
-        // 检查菜品是否满足筛选条件
-        function meetsFilterCriteria(dish) {
-            // 辣度筛选
-            if (currentFilters.spicy !== 'all' && dish.spicy !== currentFilters.spicy) {
-                return false;
-            }
+        // 计算菜品平均评分（基于所有用户评价）
+        function calculateDishRating(canteenName, stallName, dishIndex) {
+            const userReviews = JSON.parse(localStorage.getItem('userReviews') || '{}');
+            const dishReviews = [];
             
-            // 评分筛选
-            const dishRating = parseFloat(dish.rating);
-            if (currentFilters.minRating !== null && dishRating < currentFilters.minRating) {
-                return false;
-            }
-            if (currentFilters.maxRating !== null && dishRating > currentFilters.maxRating) {
-                return false;
-            }
-            
-            // 价格筛选
-            if (currentFilters.minPrice !== null && dish.price < currentFilters.minPrice) {
-                return false;
-            }
-            if (currentFilters.maxPrice !== null && dish.price > currentFilters.maxPrice) {
-                return false;
-            }
-            
-            // 瘦身筛选：隐藏高脂菜品
-            if (slimFilterActive && dish.attributes.includes('高脂')) {
-                return false;
-            }
-            
-            // 健身筛选：只显示高蛋白菜品
-            if (fitnessFilterActive && !dish.attributes.includes('高蛋白')) {
-                return false;
-            }
-            
-            return true;
-        }
-
-        // 对餐饮大楼应用筛选条件
-        function applyFiltersToCanteens(canteens) {
-            return canteens.map(canteen => {
-                const filteredStalls = canteen.stalls.map(stall => {
-                    const filteredDishes = stall.dishes.filter(dish => meetsFilterCriteria(dish));
-                    
-                    if (filteredDishes.length > 0) {
-                        return {
-                            name: stall.name,
-                            rating: stall.rating,
-                            dishes: filteredDishes,
-                            comments: stall.comments,
-                            collapsed: stall.collapsed
-                        };
-                    }
-                    return null;
-                }).filter(stall => stall !== null);
-
-                if (filteredStalls.length > 0) {
-                    return {
-                        name: canteen.name,
-                        stalls: filteredStalls,
-                        collapsed: canteen.collapsed
-                    };
+            // 收集所有对该菜品的评价
+            Object.keys(userReviews).forEach(uniqueId => {
+                const reviewData = userReviews[uniqueId];
+                if (reviewData.canteenName === canteenName && 
+                    reviewData.stallName === stallName && 
+                    reviewData.dishIndex === dishIndex && 
+                    reviewData.type === 'dish') {
+                    dishReviews.push(parseFloat(reviewData.rating));
                 }
-                return null;
-            }).filter(canteen => canteen !== null);
+            });
+            
+            // 如果没有用户评价，返回默认评分
+            if (dishReviews.length === 0) {
+                return 3.0;
+            }
+            
+            // 计算平均评分
+            const totalRating = dishReviews.reduce((sum, rating) => sum + rating, 0);
+            return (totalRating / dishReviews.length).toFixed(1);
+        }
+        
+        // 基于评论计算评分
+        function calculateRatingFromComments(comments) {
+            if (!comments || comments.length === 0) {
+                return 3.0; // 默认评分
+            }
+            
+            const totalRating = comments.reduce((sum, comment) => sum + parseFloat(comment.rating), 0);
+            return (totalRating / comments.length).toFixed(1);
         }
 
         // 计算摊位平均评分
@@ -1560,10 +1482,12 @@
             const dishes = [];
             for (let i = 1; i <= 4; i++) {
                 const comments = generateRandomComments();
+                // 计算基于评论的平均评分
+                const rating = calculateRatingFromComments(comments);
                 dishes.push({
                     name: `菜品${i}`,
                     price: Math.floor(Math.random() * 20) + 5, // 5-24元随机价格
-                    rating: calculateDishRating(comments),
+                    rating: rating,
                     spicy: getRandomSpicy(),
                     attributes: getRandomAttributes(),
                     comments: comments
@@ -1624,7 +1548,7 @@
             return {
                 name: name,
                 price: price,
-                rating: calculateDishRating(comments),
+                rating: calculateRatingFromComments(comments),
                 spicy: spicy,
                 attributes: attributes,
                 comments: comments
@@ -2283,7 +2207,7 @@
                 const canteenIndex = numberMap[canteenNumber] || parseInt(canteenNumber);
                 
                 if (canteenIndex && canteenIndex >= 1 && canteenIndex <= 7) {
-                    // 显示指定餐饮大楼的所有菜品，同时应用筛选条件
+                    // 显示指定餐饮大楼的所有菜品
                     const targetCanteen = canteensData.find(c => c.name === `第${canteenIndex}餐饮大楼`);
                     if (targetCanteen) {
                         // 展开该餐饮大楼的所有摊位
@@ -2292,8 +2216,7 @@
                             stall.collapsed = false;
                         });
                         
-                        // 应用筛选条件到指定餐饮大楼
-                        const filteredCanteens = applyFiltersToCanteens([targetCanteen]);
+                        const filteredCanteens = [targetCanteen];
                         renderCanteens(filteredCanteens);
                         updateSearchStats(query, filteredCanteens);
                         return;
@@ -2301,20 +2224,17 @@
                 }
             }
             
-            // 菜品名称搜索 - 显示所有匹配的菜品，同时应用筛选条件
+            // 菜品名称搜索 - 显示所有匹配的菜品
             const allDishes = [];
             canteensData.forEach(canteen => {
                 canteen.stalls.forEach(stall => {
                     stall.dishes.forEach(dish => {
                         if (dish.name.toLowerCase().includes(searchTerm)) {
-                            // 检查是否满足筛选条件
-                            if (meetsFilterCriteria(dish)) {
-                                allDishes.push({
-                                    ...dish,
-                                    canteenName: canteen.name,
-                                    stallName: stall.name
-                                });
-                            }
+                            allDishes.push({
+                                ...dish,
+                                canteenName: canteen.name,
+                                stallName: stall.name
+                            });
                         }
                     });
                 });
@@ -2345,8 +2265,27 @@
 
                         if (!matchesDish) return false;
                         
-                        // 应用筛选条件
-                        return meetsFilterCriteria(dish);
+                        // 应用当前筛选条件
+                        if (currentFilters.spicy !== 'all' && dish.spicy !== currentFilters.spicy) {
+                            return false;
+                        }
+                        
+                        const dishRating = parseFloat(dish.rating);
+                        if (currentFilters.minRating !== null && dishRating < currentFilters.minRating) {
+                            return false;
+                        }
+                        if (currentFilters.maxRating !== null && dishRating > currentFilters.maxRating) {
+                            return false;
+                        }
+                        
+                        if (currentFilters.minPrice !== null && dish.price < currentFilters.minPrice) {
+                            return false;
+                        }
+                        if (currentFilters.maxPrice !== null && dish.price > currentFilters.maxPrice) {
+                            return false;
+                        }
+                        
+                        return true;
                     });
                     
                     if (filteredDishes.length > 0) {
@@ -2472,7 +2411,14 @@
         }
 
 
-        // 全局筛选状态已移动到顶部
+        // 全局筛选状态
+        let currentFilters = {
+            spicy: 'all',
+            minRating: null,
+            maxRating: null,
+            minPrice: null,
+            maxPrice: null
+        };
 
         // 按辣度筛选
         function filterBySpicy(spicyLevel) {
@@ -2529,22 +2475,192 @@
 
         // 应用所有筛选条件
         function applyAllFilters() {
-            // 检查是否有搜索内容
-            const searchInput = document.getElementById('searchInput');
-            const searchQuery = searchInput ? searchInput.value.trim() : '';
+            // 检查是否有模态框筛选设置需要应用推荐度计算
+            const hasModalFilterSettings = filterSettings.spicy !== null || filterSettings.location !== null || filterSettings.priority !== null;
             
-            if (searchQuery) {
-                // 如果有搜索内容，重新执行搜索（会自动应用筛选条件）
-                searchCanteens(searchQuery);
-            } else {
-                // 没有搜索内容，只应用筛选条件
-                const filteredCanteens = applyFiltersToCanteens(canteensData);
-                renderCanteens(filteredCanteens);
+            if (hasModalFilterSettings) {
+                // 如果有模态框筛选设置，使用完整的筛选和推荐度计算逻辑
+                applyModalFilterSettings();
+                return;
             }
+            
+            // 创建一个新的数据结构，包含筛选后的结果
+            const filteredCanteens = canteensData.map(canteen => {
+                // 获取当前餐饮大楼
+                const currentCanteen = canteensData.find(c => c.name === canteen.name);
+                
+                // 筛选每个摊位，创建新的摊位对象，只包含符合条件的菜品
+                const filteredStalls = currentCanteen.stalls.map(stall => {
+                    // 筛选该摊位中符合条件的菜品
+                    const filteredDishes = stall.dishes.filter(dish => {
+                        // 辣度筛选
+                        if (currentFilters.spicy !== 'all' && dish.spicy !== currentFilters.spicy) {
+                            return false;
+                        }
+                        
+                        // 评分筛选
+                        const dishRating = parseFloat(dish.rating);
+                        if (currentFilters.minRating !== null && dishRating < currentFilters.minRating) {
+                            return false;
+                        }
+                        if (currentFilters.maxRating !== null && dishRating > currentFilters.maxRating) {
+                            return false;
+                        }
+                        
+                        // 价格筛选
+                        if (currentFilters.minPrice !== null && dish.price < currentFilters.minPrice) {
+                            return false;
+                        }
+                        if (currentFilters.maxPrice !== null && dish.price > currentFilters.maxPrice) {
+                            return false;
+                        }
+                        
+                        // 瘦身筛选：隐藏高脂菜品
+                        if (slimFilterActive && dish.attributes.includes('高脂')) {
+                            return false;
+                        }
+                        
+                        // 健身筛选：只显示高蛋白菜品
+                        if (fitnessFilterActive && !dish.attributes.includes('高蛋白')) {
+                            return false;
+                        }
+                        
+                        return true;
+                    });
+                    
+                    // 如果有符合条件的菜品，返回新的摊位对象
+                    if (filteredDishes.length > 0) {
+                        return {
+                            name: stall.name,
+                            rating: stall.rating,
+                            dishes: filteredDishes,
+                            comments: stall.comments,
+                            collapsed: stall.collapsed  // 保持原始折叠状态
+                        };
+                    }
+                    return null;
+                }).filter(stall => stall !== null); // 过滤掉没有菜品的摊位
+
+                // 如果该餐饮大楼还有摊位，返回新的餐饮大楼对象
+                if (filteredStalls.length > 0) {
+                    return {
+                        name: currentCanteen.name,
+                        stalls: filteredStalls,
+                        collapsed: currentCanteen.collapsed  // 保持原始折叠状态
+                    };
+                }
+                return null;
+            }).filter(canteen => canteen !== null); // 过滤掉没有摊位的餐饮大楼
+
+            renderCanteens(filteredCanteens);
+        }
+        
+        // 应用模态框筛选设置（包含推荐度计算）
+        function applyModalFilterSettings() {
+            // 获取所有菜品并计算评分
+            const allDishes = [];
+            canteensData.forEach(canteen => {
+                canteen.stalls.forEach(stall => {
+                    stall.dishes.forEach(dish => {
+                        // 添加餐饮大楼信息
+                        dish.canteenName = canteen.name;
+                        dish.stallName = stall.name;
+                        allDishes.push(dish);
+                    });
+                });
+            });
+
+            // 应用筛选条件
+            let filteredDishes = allDishes;
+
+            // 辣度筛选
+            if (filterSettings.spicy === '辣') {
+                filteredDishes = filteredDishes.filter(dish => 
+                    dish.spicy === '微辣' || dish.spicy === '中辣' || dish.spicy === '麻辣'
+                );
+            } else if (filterSettings.spicy === '不辣') {
+                filteredDishes = filteredDishes.filter(dish => dish.spicy === '不辣');
+            }
+            // 如果选择"辣不辣皆可"，则不进行筛选
+
+            // 位置评分 (a值)
+            filteredDishes.forEach(dish => {
+                let a = 0;
+                if (filterSettings.location === '东34宿舍') {
+                    if (dish.canteenName.includes('第1餐饮大楼')) a = 0;
+                    else if (dish.canteenName.includes('第2餐饮大楼')) a = 0.5;
+                    else a = 1;
+                } else if (filterSettings.location === '上/中/下院') {
+                    if (dish.canteenName.includes('第3餐饮大楼')) a = 0;
+                    else if (dish.canteenName.includes('第2餐饮大楼')) a = 0.5;
+                    else a = 1;
+                } else if (filterSettings.location === '东上/中/下院') {
+                    if (dish.canteenName.includes('第1餐饮大楼')) a = 0;
+                    else if (dish.canteenName.includes('第3餐饮大楼')) a = 0.5;
+                    else a = 1;
+                }
+                dish.a = a;
+            });
+
+            // 口味评分 (b值)
+            filteredDishes.forEach((dish, index) => {
+                dish.b = parseFloat(dish.rating) / 5;
+            });
+
+            // 综合评分 (c值)
+            filteredDishes.forEach(dish => {
+                let c = 0;
+                if (filterSettings.priority === '时间为重') {
+                    c = dish.a * 0.8 + dish.b * 0.2;
+                } else if (filterSettings.priority === '口味为重') {
+                    c = dish.a * 0.2 + dish.b * 0.8;
+                } else if (filterSettings.priority === '二者兼顾') {
+                    c = dish.a * 0.5 + dish.b * 0.5;
+                } else {
+                    // 如果没有设置优先级，使用默认的平衡权重
+                    c = dish.a * 0.5 + dish.b * 0.5;
+                }
+                dish.c = c;
+            });
+
+            // 按c值从大到小排序
+            filteredDishes.sort((a, b) => b.c - a.c);
+
+            // 渲染筛选结果
+            renderFilteredDishes(filteredDishes);
         }
 
-        // 初始化全局变量
-        canteensData = generateCanteens();
+        // 全局变量
+        let canteensData = generateCanteens();
+        let currentModalData = null;
+        
+        // 初始化时更新所有菜品的评分为基于评论的平均分数
+        function updateAllDishRatings() {
+            canteensData.forEach(canteen => {
+                canteen.stalls.forEach(stall => {
+                    stall.dishes.forEach(dish => {
+                        dish.rating = calculateRatingFromComments(dish.comments);
+                    });
+                    // 更新摊位评分
+                    stall.rating = calculateStallRating(stall.dishes);
+                });
+            });
+        }
+        
+        // 页面加载时更新所有评分
+        updateAllDishRatings();
+        
+        // 筛选相关变量
+        let filterSettings = {
+            spicy: null,
+            location: null,
+            priority: null
+        };
+        let currentStep = 1;
+        
+        // 瘦身和健身筛选状态
+        let slimFilterActive = false;
+        let fitnessFilterActive = false;
 
         // 切换餐饮大楼折叠状态
         function toggleCanteen(canteenName) {
@@ -2616,40 +2732,10 @@
             document.getElementById('modalTitle').textContent = `${canteenName} - ${targetData.name}`;
             document.getElementById('modalRating').textContent = `${targetData.rating}⭐`;
             
-            // 显示评论 - 合并原始评论和全局评论
+            // 显示评论
             const commentsList = document.getElementById('commentsList');
-            const globalComments = getGlobalComments(canteenName, stallName, dishIndex, type);
-            const originalComments = targetData.comments || [];
-            
-            // 合并评论，去重（基于作者和时间）
-            const allComments = [...originalComments];
-            globalComments.forEach(globalComment => {
-                // 检查是否已存在相同的评论（避免重复显示）
-                const exists = allComments.some(comment => 
-                    comment.author === globalComment.author && 
-                    comment.text === globalComment.text && 
-                    comment.date === globalComment.date
-                );
-                if (!exists) {
-                    allComments.push(globalComment);
-                }
-            });
-            
-            // 按时间排序（最新的在前）
-            allComments.sort((a, b) => {
-                const timeA = a.timestamp || new Date(a.date).getTime();
-                const timeB = b.timestamp || new Date(b.date).getTime();
-                return timeB - timeA;
-            });
-            
-            if (allComments.length > 0) {
-                // 添加评论统计信息
-                const commentStats = document.createElement('div');
-                commentStats.style.cssText = 'text-align: center; color: #7f8c8d; font-size: 0.9em; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 8px;';
-                commentStats.innerHTML = `📝 共 ${allComments.length} 条评价`;
-                commentsList.appendChild(commentStats);
-                
-                commentsList.innerHTML += allComments.map(comment => `
+            if (targetData.comments && targetData.comments.length > 0) {
+                commentsList.innerHTML = targetData.comments.map(comment => `
                     <div class="comment">
                         <div class="comment-header">
                             <div class="comment-author">${comment.author}</div>
@@ -2729,37 +2815,6 @@
             localStorage.setItem('userReviews', JSON.stringify(userReviews));
         }
 
-        // 保存评论到全局评论存储（所有用户可见）
-        function saveGlobalComment(canteenName, stallName, dishIndex, type, comment) {
-            const globalComments = JSON.parse(localStorage.getItem('globalComments') || '{}');
-            const key = `${canteenName}-${stallName}-${dishIndex}-${type}`;
-            
-            if (!globalComments[key]) {
-                globalComments[key] = [];
-            }
-            
-            // 添加评论ID以确保唯一性
-            const commentId = Date.now() + Math.random().toString(36).substr(2, 9);
-            comment.id = commentId;
-            comment.timestamp = Date.now();
-            
-            globalComments[key].unshift(comment);
-            
-            // 限制每个菜品最多保存50条评论
-            if (globalComments[key].length > 50) {
-                globalComments[key] = globalComments[key].slice(0, 50);
-            }
-            
-            localStorage.setItem('globalComments', JSON.stringify(globalComments));
-        }
-
-        // 获取全局评论
-        function getGlobalComments(canteenName, stallName, dishIndex, type) {
-            const globalComments = JSON.parse(localStorage.getItem('globalComments') || '{}');
-            const key = `${canteenName}-${stallName}-${dishIndex}-${type}`;
-            return globalComments[key] || [];
-        }
-
         // 获取用户评价
         function getUserReview(uniqueId) {
             const userReviews = JSON.parse(localStorage.getItem('userReviews') || '{}');
@@ -2833,14 +2888,6 @@
             };
 
             targetData.comments.unshift(newComment);
-            
-            // 同时保存到全局评论存储（所有用户可见）
-            saveGlobalComment(canteenName, stallName, dishIndex, type, {
-                author: '我',
-                rating: parseFloat(commentRating),
-                text: commentText,
-                date: new Date().toLocaleDateString()
-            });
 
             // 保存用户评价到本地存储
             const reviewData = {
@@ -2858,13 +2905,16 @@
             // 标记为已评价
             markAsReviewed(uniqueId);
 
-            // 更新平均评分
-            const totalRating = targetData.comments.reduce((sum, comment) => sum + comment.rating, 0);
-            targetData.rating = (totalRating / targetData.comments.length).toFixed(1);
-
-            // 如果是菜品评论，还需要更新摊位评分
+            // 更新平均评分 - 对于菜品使用新的计算函数
             if (type === 'dish') {
+                // 更新菜品评分为基于评论的平均分数
+                targetData.rating = calculateRatingFromComments(targetData.comments);
+                // 更新摊位评分
                 stall.rating = calculateStallRating(stall.dishes);
+            } else {
+                // 摊位评分仍然使用原有逻辑
+                const totalRating = targetData.comments.reduce((sum, comment) => sum + comment.rating, 0);
+                targetData.rating = (totalRating / targetData.comments.length).toFixed(1);
             }
 
             // 重新渲染页面
@@ -2891,17 +2941,6 @@
                 // 删除本地存储中的用户评价数据
                 deleteUserReview(uniqueId);
                 
-                // 从全局评论中删除用户的评论
-                if (currentModalData) {
-                    const { canteenName, stallName, dishIndex, type } = currentModalData;
-                    const globalComments = JSON.parse(localStorage.getItem('globalComments') || '{}');
-                    const key = `${canteenName}-${stallName}-${dishIndex}-${type}`;
-                    if (globalComments[key]) {
-                        globalComments[key] = globalComments[key].filter(comment => comment.author !== '我');
-                        localStorage.setItem('globalComments', JSON.stringify(globalComments));
-                    }
-                }
-                
                 // 从评论列表中移除用户的评论
                 if (currentModalData) {
                     const { canteenName, stallName, dishIndex, type } = currentModalData;
@@ -2920,17 +2959,20 @@
                                 // 移除用户名为"我"的评论
                                 targetData.comments = targetData.comments.filter(comment => comment.author !== '我');
                                 
-                                // 重新计算评分
-                                if (targetData.comments.length > 0) {
-                                    const totalRating = targetData.comments.reduce((sum, comment) => sum + comment.rating, 0);
-                                    targetData.rating = (totalRating / targetData.comments.length).toFixed(1);
-                                } else {
-                                    targetData.rating = '3.0';
-                                }
-                                
-                                // 如果是菜品评论，还需要更新摊位评分
+                                // 重新计算评分 - 对于菜品使用新的计算函数
                                 if (type === 'dish') {
+                                    // 更新菜品评分为基于评论的平均分数
+                                    targetData.rating = calculateRatingFromComments(targetData.comments);
+                                    // 更新摊位评分
                                     stall.rating = calculateStallRating(stall.dishes);
+                                } else {
+                                    // 摊位评分仍然使用原有逻辑
+                                    if (targetData.comments.length > 0) {
+                                        const totalRating = targetData.comments.reduce((sum, comment) => sum + comment.rating, 0);
+                                        targetData.rating = (totalRating / targetData.comments.length).toFixed(1);
+                                    } else {
+                                        targetData.rating = '3.0';
+                                    }
                                 }
                             }
                         }
@@ -2995,24 +3037,24 @@
                     targetData.comments.unshift(userComment);
                 }
                 
-                // 重新计算评分
-                const totalRating = targetData.comments.reduce((sum, comment) => sum + comment.rating, 0);
-                targetData.rating = (totalRating / targetData.comments.length).toFixed(1);
-                
-                // 如果是菜品评论，还需要更新摊位评分
+                // 重新计算评分 - 对于菜品使用新的计算函数
                 if (type === 'dish') {
+                    // 菜品评分由用户评价计算，不需要更新targetData.rating
+                    // 但需要更新摊位评分
                     stall.rating = calculateStallRating(stall.dishes);
+                } else {
+                    // 摊位评分仍然使用原有逻辑
+                    const totalRating = targetData.comments.reduce((sum, comment) => sum + comment.rating, 0);
+                    targetData.rating = (totalRating / targetData.comments.length).toFixed(1);
                 }
             });
         }
 
         // 页面加载完成后渲染
         document.addEventListener('DOMContentLoaded', function() {
-            // 首先加载全局评论
-            loadGlobalComments();
-            // 然后加载用户评价
+            // 首先加载用户评价
             loadUserReviews();
-            // 最后应用筛选条件
+            // 然后应用筛选条件
             applyAllFilters();
 
             // 增强搜索功能 - 防抖搜索
@@ -3035,7 +3077,6 @@
             });
 
             // 弹窗关闭功能
-            document.querySelector('.close').addEventListener('click', closeModal);
             window.addEventListener('click', function(e) {
                 const modal = document.getElementById('commentModal');
                 if (e.target === modal) {
@@ -3370,7 +3411,7 @@
             });
 
             // 口味评分 (b值)
-            filteredDishes.forEach(dish => {
+            filteredDishes.forEach((dish, index) => {
                 dish.b = parseFloat(dish.rating) / 5;
             });
 
@@ -3382,6 +3423,9 @@
                 } else if (filterSettings.priority === '口味为重') {
                     c = dish.a * 0.2 + dish.b * 0.8;
                 } else if (filterSettings.priority === '二者兼顾') {
+                    c = dish.a * 0.5 + dish.b * 0.5;
+                } else {
+                    // 如果没有设置优先级，使用默认的平衡权重
                     c = dish.a * 0.5 + dish.b * 0.5;
                 }
                 dish.c = c;
@@ -3501,6 +3545,9 @@
         }
 
         function clearFilter() {
+            // 重置模态框筛选设置
+            filterSettings = { spicy: null, location: null, priority: null };
+            // 应用筛选条件（现在会使用普通的筛选逻辑）
             applyAllFilters();
         }
 
@@ -3638,64 +3685,6 @@
                     observer.observe(dish);
                 });
             });
-        }
-
-        // 加载全局评论到菜品数据中
-        function loadGlobalComments() {
-            const globalComments = JSON.parse(localStorage.getItem('globalComments') || '{}');
-            
-            Object.keys(globalComments).forEach(key => {
-                const [canteenName, stallName, dishIndex, type] = key.split('-');
-                const comments = globalComments[key];
-                
-                const canteen = canteensData.find(c => c.name === canteenName);
-                if (!canteen) return;
-                
-                const stall = canteen.stalls.find(s => s.name === stallName);
-                if (!stall) return;
-                
-                let targetData;
-                if (type === 'dish') {
-                    targetData = stall.dishes[parseInt(dishIndex)];
-                } else {
-                    targetData = stall;
-                }
-                
-                if (!targetData) return;
-                
-                // 确保评论数组存在
-                if (!targetData.comments) {
-                    targetData.comments = [];
-                }
-                
-                // 添加全局评论（避免重复）
-                comments.forEach(globalComment => {
-                    const exists = targetData.comments.some(comment => 
-                        comment.author === globalComment.author && 
-                        comment.text === globalComment.text && 
-                        comment.date === globalComment.date
-                    );
-                    if (!exists) {
-                        targetData.comments.push(globalComment);
-                    }
-                });
-                
-                // 重新计算评分
-                if (targetData.comments.length > 0) {
-                    const totalRating = targetData.comments.reduce((sum, comment) => sum + comment.rating, 0);
-                    targetData.rating = (totalRating / targetData.comments.length).toFixed(1);
-                }
-                
-                // 如果是菜品评论，更新摊位评分
-                if (type === 'dish') {
-                    stall.rating = calculateStallRating(stall.dishes);
-                }
-            });
-        }
-
-        // 显示团队信息
-        function showTeamInfo() {
-            alert('@Menu+团队\n\n我们致力于为上海交通大学师生提供优质的食堂服务体验！\n\n✨ 功能特色：\n• 智能搜索与筛选\n• 实时菜品评价\n• 移动端优化\n• 个性化推荐\n\n感谢您的使用！');
         }
 
         // 初始化所有搜索功能
